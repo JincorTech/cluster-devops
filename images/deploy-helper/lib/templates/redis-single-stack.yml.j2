@@ -1,0 +1,41 @@
+version: '3.6'
+
+{% from 'macros.j2' import deploy_replicas, environment, link_secrets, secrets, link_configs, configs %}
+
+services:
+  redis-1:
+    image: {{ redis.image }}
+    {{ deploy_replicas(redis.deploy) }}
+
+    environment:
+      {{ environment(redis.env) }}
+      REDIS_MODE: 'single'
+    command: /etc/redis/redis.conf
+    volumes:
+      - redis-1:/data
+    networks:
+      network:
+        aliases:
+          - redis
+    {{ link_configs(redis.configs) }}
+    {{ link_secrets(redis.secrets) }}
+
+networks:
+  network:
+    labels:
+      com.sercrettech.stack.type: 'redis'
+    attachable: true
+    driver: overlay
+
+volumes:
+  redis-1:
+
+{% if redis.secrets -%}
+secrets:
+  {{ secrets(redis.secrets) }}
+{%- endif %}
+
+{% if redis.configs -%}
+configs:
+  {{ configs(redis.configs) }}
+{%- endif %}

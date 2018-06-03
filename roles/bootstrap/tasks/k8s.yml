@@ -1,0 +1,22 @@
+---
+- name: Setup repository key for Kubernetes
+  shell: "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -"
+  tags: ['bootstrap', 'k8s']
+
+- name: Update repository for latest Kubernetes
+  shell: 'add-apt-repository "deb [arch=amd64] http://apt.kubernetes.io/ kubernetes-$(lsb_release -cs) main"'
+  tags: ['bootstrap', 'k8s']
+
+- name: Force update packages info
+  changed_when: false
+  shell: apt-get update -y
+  tags: ['bootstrap', 'k8s']
+
+- name: Install k8s tools
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - kubeadm
+    - kubelet
+    - kubectl
+    - kubernetes-cni
+  tags: ['bootstrap', 'k8s']

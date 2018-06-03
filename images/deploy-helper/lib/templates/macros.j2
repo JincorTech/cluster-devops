@@ -1,0 +1,143 @@
+{% macro deploy_replicas(deploy, ingress = False) -%}
+    deploy:
+      replicas: {{ deploy.replicas|d('1') }}
+
+      {% if deploy.labels or ingress -%}
+      labels:
+        {% if ingress -%}
+        {{ ingress_traefik_labels(ingress) }}
+        {%- endif %}
+
+        {% if deploy.labels -%}
+        {% for name, value in deploy.labels.iteritems() -%}
+        {{ name }}: '{{ value }}'
+        {% endfor %}
+
+        {%- endif %}
+      {%- endif %}
+
+      {% if deploy.restart -%}
+      restart_policy:
+        condition: {{ deploy.restart.condition|d('on-failure') }}
+        delay: {{ deploy.restart.delay|d('1s') }}
+      {%- endif %}
+
+      {% if deploy.limits -%}
+      resources:
+        limits:
+          cpus: '{{ deploy.limits.cpus|d('1.0') }}'
+          memory: '{{ deploy.limits.memory|d('1024M') }}'
+      {%- endif %}
+
+      {% if deploy.constraints -%}
+      placement:
+        constraints:
+        {% for label in deploy.constraints -%}
+          - {{ label.name }} {{ label.eq|d('==') }} {{ label.value }}
+        {% endfor %}
+      {%- endif %}
+{%- endmacro %}
+
+{% macro dns() -%}
+    dns:
+      - 8.8.8.8
+      - 9.9.9.9
+      - 8.8.4.4
+{%- endmacro %}
+
+{% macro ingress_traefik_labels(ingress) -%}
+
+        {% if ingress -%}
+
+        - traefik.enable=true
+        - traefik.docker.network=global_ingress_network
+        - traefik.frontend.passHostHeader=true
+        - traefik.frontend.entryPoints=http,https
+
+        {% if ingress.path -%}
+
+        - traefik.frontend.rule=Host:{{ ingress.host }} PathPrefix:{{ ingress.path }}
+
+        {% else %}
+
+        - traefik.frontend.rule=Host:{{ ingress.host }}
+
+        {%- endif %}
+
+        {% if ingress.limitter -%}
+        - traefik.frontend.rateLimit.extractorFunc=client.ip
+
+        {% for item in ingress.limitter -%}
+        - traefik.frontend.rateLimit.rateSet.rs{{ loop.index }}.period={{ item[0] }}
+        - traefik.frontend.rateLimit.rateSet.rs{{ loop.index }}.average={{ item[1] }}
+        - traefik.frontend.rateLimit.rateSet.rs{{ loop.index }}.burst={{ item[2] }}
+
+        {% endfor %}
+
+        {%- endif %}
+
+        - traefik.port={{ ingress.port|d('80') }}
+        - traefik.backend.loadbalancer.swarm=true
+        - traefik.backend.maxconn.amount={{ ingress.maxconn|d('1024') }}
+        - traefik.backend={{ ingress.alias }}
+
+        {%- endif %}
+{%- endmacro %}
+
+{% macro link_configs(configs) -%}
+{% if configs -%}
+    configs:
+      {% for name, item in configs.iteritems() -%}
+      - source: {{ name }}
+        target: {{ item.path }}
+        mode: {{ item.mode|d('0744') }}
+        {% if item.uid -%}
+        uid: {{ item.uid }}
+        {%- endif %}
+        {% if item.gid -%}
+        gid: {{ item.gid }}
+        {%- endif %}
+
+      {% endfor %}
+{%- endif %}
+{%- endmacro %}
+
+{% macro link_secrets(secrets) -%}
+{% if secrets -%}
+    secrets:
+      {% for name, item in secrets.iteritems() -%}
+      - source: {{ name }}
+        target: {{ item.path }}
+        mode: {{ item.mode|d('0744') }}
+        {% if item.uid -%}
+        uid: {{ item.uid }}
+        {%- endif %}
+        {% if item.gid -%}
+        gid: {{ item.gid }}
+        {%- endif %}
+
+      {% endfor %}
+{%- endif %}
+{%- endmacro %}
+
+{% macro environment(envs) -%}
+      {% for name, value in envs.iteritems() -%}
+      {{ name }}: '{{ value }}'
+      {% endfor %}
+{%- endmacro %}
+
+{% macro secrets(secrets) -%}
+  {% for name, item in secrets.iteritems() -%}
+  {{ name }}:
+    external: true
+    name: {{ item.external }}
+  {% endfor %}
+{%- endmacro %}
+
+{% macro configs(configs) -%}
+  {% for name, item in configs.iteritems() -%}
+  {{ name }}:
+    external: true
+    name: {{ item.external }}
+  {% endfor %}
+{%- endmacro %}

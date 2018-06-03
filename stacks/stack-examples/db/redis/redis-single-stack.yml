@@ -1,0 +1,42 @@
+version: '3.6'
+
+services:
+  redis-1:
+    image: alekns/redis-service:latest
+    deploy:
+      endpoint_mode: vip
+      replicas: 1
+      mode: replicated
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+      resources:
+        limits:
+          memory: 386M
+    #  placement:
+    #    constraints:
+    #      - node.labels.db.redis==redis-1
+    command: /etc/redis/redis.conf
+    environment:
+      AUTH_PASSWORD_FILE: /etc/auth-pass.txt
+    secrets:
+      - source: redis_auth
+        target: /etc/auth-pass.txt
+    volumes:
+      - volume-redis-1:/data
+    networks:
+      redis:
+        aliases:
+          - redis-1
+
+networks:
+  redis:
+    attachable: true
+    driver: overlay
+
+volumes:
+  volume-redis-1:
+
+secrets:
+  redis_auth:
+    file: ./redis_auth_pass

@@ -1,0 +1,42 @@
+---
+- name: Update repository for glusterfs
+  shell: sudo add-apt-repository -y ppa:gluster/glusterfs-{{ glusterfs_version }}
+  tags: glusterfs
+
+- name: Force update packages info
+  changed_when: false
+  shell: apt-get update -y
+  tags: glusterfs
+
+- name: Install GlusterFS server
+  apt: pkg=glusterfs-server state=latest
+  tags: glusterfs
+
+- name: Configure GlusterFS servers
+  block:
+    - name: Check status
+      shell: gluster peer status
+      register: gluster_status
+
+    - name: First peers probe
+      shell: gluster peer probe c-{{ item }}
+      changed_when: false
+      when: "item != inventory_hostname
+        and inventory_hostname == groups['glusterfs_nodes'][0]"
+      loop:
+        - "{{ groups['glusterfs_nodes'][0] }}"
+        - "{{ groups['glusterfs_nodes'][1] }}"
+
+    - name: Other peers probe
+      shell: gluster peer probe c-{{ item }}
+      changed_when: false
+      when: "item != inventory_hostname
+        and item != groups['glusterfs_nodes'][0]
+        and item != groups['glusterfs_nodes'][1]
+        and inventory_hostname == groups['glusterfs_nodes'][0]"
+      loop: "{{ groups['glusterfs_nodes'] }}"
+
+    - name: Make default folder for bricks
+      file: path=/data/bricks state=directory
+  when: "groups['glusterfs_nodes']|length > 1"
+  tags: glusterfs

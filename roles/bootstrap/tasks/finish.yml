@@ -1,0 +1,29 @@
+---
+- name: Reboot server
+  become: true
+  shell: sleep 1 && shutdown -r now "Reboot triggered by Ansible script"
+  async: 1
+  poll: 0
+  ignore_errors: true
+  tags: bootstrap
+
+- pause:
+    seconds: 1
+  tags: bootstrap
+
+- name: Waiting hosts
+  become: false
+  local_action:
+    module: wait_for
+    host: '{{ ansible_ssh_host|default(ansible_host)|default(inventory_hostname) }}'
+    port: '{{ ansible_ssh_port|default(ufw_ssh_port) }}'
+    search_regex: OpenSSH
+    delay: 15
+    sleep: 5
+    timeout: 300
+  ignore_errors: true
+  tags: bootstrap
+
+- pause:
+    seconds: 5
+  tags: bootstrap

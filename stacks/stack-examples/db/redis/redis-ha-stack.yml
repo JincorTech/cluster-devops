@@ -1,0 +1,129 @@
+version: '3.6'
+
+services:
+  redis:
+    image: alekns/redis-proxy:latest
+    hostname: redis
+    deploy:
+      replicas: 1
+      mode: replicated
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+      resources:
+        limits:
+          memory: 256M
+
+    environment:
+      REDIS_AUTH_PASSWORD_FILE: '/etc/auth-pass.txt'
+      REDIS_NODES: 'redis-1:6379 redis-2:6379'
+    secrets:
+      - source: redis_auth
+        target: /etc/auth-pass.txt
+    networks:
+      redis:
+        aliases:
+          - redis
+
+  redis-manager-1: &redis-manager
+    image: alekns/redis-sentinel:latest
+    hostname: redis-manager-1
+    deploy:
+      replicas: 1
+      mode: replicated
+      restart_policy:
+        condition: any
+        # on-failure
+        delay: 1s
+      resources:
+        limits:
+          memory: 128M
+    environment:
+      SENTINEL_AUTH_PASSWORD_FILE: '/etc/auth-pass.txt'
+      REDIS_NODES: 'redis-1:6379 redis-2:6379'
+    secrets:
+      - source: redis_auth
+        target: /etc/auth-pass.txt
+    networks:
+      redis:
+        aliases:
+          - redis-manager-1
+
+  redis-manager-2:
+    << : *redis-manager
+    hostname: redis-manager-2
+    networks:
+      redis:
+        aliases:
+          - redis-manager-2
+
+  redis-manager-3:
+    << : *redis-manager
+    hostname: redis-manager-3
+    networks:
+      redis:
+        aliases:
+          - redis-manager-2
+
+  redis-1: &redis-common
+    image: alekns/redis-service:latest
+    deploy: &redis-deploy
+      endpoint_mode: vip
+      replicas: 1
+      mode: replicated
+      restart_policy:
+        condition: any
+        delay: 1s
+      resources:
+        limits:
+          memory: 386M
+      placement:
+        constraints:
+          - node.labels.db.redis==1
+
+    environment: &redis-envs
+      REDIS_SELF: 'redis-1'
+      REDIS_MODE: 'ha'
+      SENTINEL_NODES: 'redis-manager-1:26379 redis-manager-2:26379 redis-manager-3:26379'
+      REDIS_NODES: 'redis-1:6379 redis-2:6379'
+      AUTH_PASSWORD_FILE: '/etc/auth-pass.txt'
+    command: /etc/redis/redis.conf
+    secrets:
+      - source: redis_auth
+        target: /etc/auth-pass.txt
+    volumes:
+      - volume-redis-1:/data
+    networks:
+      redis:
+        aliases:
+          - redis-1
+
+  redis-2:
+    << : *redis-common
+    deploy:
+      << : *redis-deploy
+      placement:
+        constraints:
+          - node.labels.db.redis==2
+    environment:
+      << : *redis-envs
+      REDIS_SELF: 'redis-2'
+    volumes:
+      - volume-redis-2:/data
+    networks:
+      redis:
+        aliases:
+          - redis-2
+
+networks:
+  redis:
+    attachable: true
+    driver: overlay
+
+secrets:
+  redis_auth:
+    file: ./redis_auth_pass
+
+volumes:
+  volume-redis-1:
+  volume-redis-2:

@@ -1,0 +1,19 @@
+---
+- hosts: docker_engine
+
+  any_errors_fatal: true
+
+  vars_files:
+    - vars/common.yml
+
+  become: true
+
+  gather_facts: False
+
+  pre_tasks:
+    - name: Install python 2
+      raw: test -e /usr/bin/python || (apt -y update && apt install -y python-minimal)
+      tags: bootstrap
+
+  roles:
+    - bootstrap

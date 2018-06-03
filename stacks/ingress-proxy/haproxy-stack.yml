@@ -1,0 +1,47 @@
+version: '3.6'
+
+services:
+  haproxy:
+    image: alekns/ingress-haproxy:latest
+
+    deploy:
+      mode: replicated
+      restart_policy:
+        condition: on-failure
+        delay: 1s
+      placement:
+        constraints:
+          - node.labels.global.ingress==haproxy
+
+    networks:
+      - network
+
+    ports:
+      - "80:8080"
+      - "443:8443"
+      - "39934:39934"
+
+    secrets:
+      - target: /usr/local/etc/haproxy/ssl/stats_server.pem
+        source: haproxy_stats_crt
+
+    configs:
+      - target: /usr/local/etc/haproxy/config.yml
+        source: haproxy_cfg_r0
+      - target: /usr/local/etc/haproxy/ssl/stats_ca.pem
+        source: haproxy_stats_ca
+
+networks:
+  network:
+    attachable: true
+    driver: overlay
+
+configs:
+  haproxy_cfg_r0:
+    file: ./haproxy-empty-config.yml
+  haproxy_stats_ca:
+    file: ./data/statscerts/ca.pem
+
+secrets:
+  haproxy_stats_crt:
+    file: ./data/statscerts/stats-server.pem

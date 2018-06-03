@@ -1,0 +1,60 @@
+[traefikLog]
+
+#[accessLog]
+  #[accessLog.filters]
+  #  statusCodes = ["200", "300-302"]
+  #  retryAttempts = true
+
+  #[accessLog.fields]
+  #  defaultMode = "keep"
+  #  [accessLog.fields.names]
+  #    "ClientUsername" = "drop"
+
+  #  [accessLog.fields.headers]
+  #    defaultMode = "keep"
+  #    [accessLog.fields.headers.names]
+  #      "User-Agent" = "redact"
+  #      "Authorization" = "drop"
+  #      "Content-Type" = "keep"
+
+[api]
+  entryPoint = "traefikdashboard"
+  dashboard = true
+
+[Docker]
+  endpoint = "unix:///var/run/docker.sock"
+  domain = "secrettech"
+  swarmMode = true
+  watch = true
+  # exposedByDefault = true
+
+[entryPoints]
+  [entryPoints.http]
+    address = ":8080"
+    compress = true
+
+  [entryPoints.https]
+    address = ":8443"
+    compress = true
+    [entryPoints.https.tls]
+      minVersion = "VersionTLS12"
+      cipherSuites = [
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_RSA_WITH_AES_256_GCM_SHA384"
+      ]
+
+  [entryPoints.traefikdashboard]
+    address = ":39934"
+    compress = true
+    [entryPoints.traefikdashboard.tls]
+      minVersion = "VersionTLS12"
+      cipherSuites = [
+        "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256",
+        "TLS_RSA_WITH_AES_256_GCM_SHA384"
+      ]
+      [entryPoints.traefikdashboard.tls.ClientCA]
+        files = ["/etc/ssl/accesstraefik-ca.pem"]
+        optional = false
+        [[entryPoints.traefikdashboard.tls.certificates]]
+          certFile = "/etc/ssl/accesstraefik.pem"
+          keyFile = "/etc/ssl/accesstraefik.pem"

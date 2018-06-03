@@ -1,0 +1,14 @@
+---
+- hosts:
+    - docker_engine
+    - removed_nodes_from_cluster
+
+  any_errors_fatal: true
+
+  vars_files:
+    - vars/common.yml
+
+  become: true
+
+  roles:
+    - firewall

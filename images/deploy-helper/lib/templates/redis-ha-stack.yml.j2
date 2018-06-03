@@ -1,0 +1,114 @@
+version: '3.6'
+
+{% from 'macros.j2' import deploy_replicas, environment, link_secrets, secrets, link_configs, configs %}
+
+services:
+  redis:
+    image: {{ proxy.image }}
+    hostname: redis
+    {{ deploy_replicas(proxy.deploy) }}
+
+    environment:
+      {{ environment(proxy.env) }}
+      REDIS_NODES: 'redis-1:6379 redis-2:6379'
+    networks:
+      network:
+        aliases:
+          - redis
+    {{ link_secrets(proxy.secrets) }}
+    {{ link_configs(proxy.configs) }}
+
+  redis-manager-1: &redis-manager
+    image: {{ manager.image }}
+    hostname: redis-manager-1
+    {{ deploy_replicas(manager1.deploy) }}
+    environment:
+      {{ environment(manager.env) }}
+      REDIS_NODES: 'redis-1:6379 redis-2:6379'
+    networks:
+      network:
+        aliases:
+          - redis-manager-1
+    {{ link_secrets(manager.secrets) }}
+    {{ link_configs(manager.configs) }}
+
+  redis-manager-2:
+    << : *redis-manager
+    hostname: redis-manager-2
+    {{ deploy_replicas(manager2.deploy) }}
+    networks:
+      network:
+        aliases:
+          - redis-manager-2
+
+  redis-manager-3:
+    << : *redis-manager
+    hostname: redis-manager-3
+    {{ deploy_replicas(manager3.deploy) }}
+    networks:
+      network:
+        aliases:
+          - redis-manager-2
+
+  redis-1: &redis-common
+    image: {{ redis.image }}
+    {{ deploy_replicas(redis1.deploy) }}
+    environment: &redis-envs
+      {{ environment(redis.env) }}
+      {{ environment(redis1.env) }}
+      REDIS_SELF: 'redis-1'
+      REDIS_MODE: 'ha'
+      SENTINEL_NODES: 'redis-manager-1:26379 redis-manager-2:26379 redis-manager-3:26379'
+      REDIS_NODES: 'redis-1:6379 redis-2:6379'
+    command: /etc/redis/redis.conf
+    volumes:
+      - redis-1:/data
+    networks:
+      network:
+        aliases:
+          - redis-1
+    {{ link_secrets(redis.secrets) }}
+    {{ link_configs(redis.configs) }}
+
+  redis-2:
+    << : *redis-common
+    {{ deploy_replicas(redis2.deploy) }}
+    environment:
+      << : *redis-envs
+      {{ environment(redis2.env) }}
+      REDIS_SELF: 'redis-2'
+    volumes:
+      - redis-2:/data
+    networks:
+      network:
+        aliases:
+          - redis-2
+
+networks:
+  network:
+    labels:
+      com.sercrettech.stack.type: 'redis'
+    attachable: true
+    driver: overlay
+
+volumes:
+  redis-1:
+  redis-2:
+
+{% if redis.secrets or proxy.secrets or manager.secrets or redis1.secrets or redis2.secrets -%}
+secrets:
+  {{ secrets(proxy.secrets) }}
+  {{ secrets(manager.secrets) }}
+  {{ secrets(redis.secrets) }}
+  {{ secrets(redis1.secrets) }}
+  {{ secrets(redis2.secrets) }}
+{%- endif %}
+
+{% if redis.configs or proxy.configs or manager.configs or redis1.configs or redis2.configs -%}
+configs:
+  {{ configs(proxy.configs) }}
+  {{ configs(manager.configs) }}
+  {{ configs(redis.configs) }}
+  {{ configs(redis1.configs) }}
+  {{ configs(redis2.configs) }}
+{%- endif %}

@@ -1,0 +1,54 @@
+version: '3.6'
+
+services:
+  mongo-1: &mongo-common
+    image: alekns/mongo-service:latest
+    deploy:
+      endpoint_mode: vip
+      replicas: 1
+      mode: replicated
+      restart_policy:
+        condition: any
+        delay: 1s
+      resources:
+        limits:
+          memory: 1024m
+      #placement:
+      #  constraints:
+      #    - node.labels.db.mongo==1
+
+    command: mongod --bind_ip_all --smallfiles --auth
+    environment:
+      MONGO_INITDBS_FILE: '/etc/mongo_dbs.txt'
+      MONGO_INITDB_DATABASE: 'mongo'
+      MONGO_INITDB_ROOT_USERNAME: 'root'
+      MONGO_INITDB_ROOT_PASSWORD_FILE: '/etc/mongo_admin_pass.txt'
+    secrets:
+      - source: mongo_admin_pass
+        target: /etc/mongo_admin_pass.txt
+      - source: mongo_dbs
+        target: /etc/mongo_dbs.txt
+    volumes:
+      - volume-mongo-1:/data
+    networks:
+      mongo:
+        aliases:
+          - mongo-1
+
+networks:
+  mongo:
+    attachable: true
+    driver: overlay
+
+volumes:
+  volume-mongo-1:
+
+configs:
+  mongo_config_init_db:
+    file: ./data/init-db.sh
+
+secrets:
+  mongo_admin_pass:
+    file: ./mongo_admin_pass
+  mongo_dbs:
+    file: ./mongo_dbs

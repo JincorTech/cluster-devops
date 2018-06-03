@@ -1,0 +1,46 @@
+global:
+  ingress:
+    haproxy:
+
+      listen:
+        stats:
+          ca: stats_ca.pem
+          crt: stats_server.pem
+          bind: '*:39934'
+          user: 'haadmin'
+          password: 'password'
+
+      configs:
+        rate_limitter: 10000
+        limitter: true
+        ssl:
+          enabled: true
+
+      entrypoints:
+        solo0: '{"host": "solo0.com", "service": "solo0svc"}'
+        solo1: '{"host": "solo1.com", "url": "/api2", "service": "solo1svc"}'
+        solo2: '{"host": "solo2.com", "url": "/api3", "ssl": "crt pem3.pem", "service": "solo2svc"}'
+
+      services:
+        solo0svc: >
+          {
+            "hosts": [
+              {"host": "google.com:80"}
+            ]
+          }
+
+        solo1svc: >
+          {
+            "limitter": "16",
+            "hosts": [
+              {"host": "ico1:3000", "options": "check maxconn 1000"}
+            ]
+          }
+
+        solo2svc: >
+          {
+            "limitter": "16",
+            "hosts": [
+              {"host": "ico2:3000", "options": "check maxconn 1000"}
+            ]
+          }

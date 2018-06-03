@@ -1,0 +1,17 @@
+global:
+  ingress:
+    haproxy:
+      listen:
+        stats:
+          ca: stats_ca.pem
+          crt: stats_server.pem
+          bind: '*:39934'
+          user: 'haproxy'
+          password: 'haproxy'
+
+      configs:
+        rate_limitter: 10000
+        limitter: true
+
+      entrypoints:
+      services:

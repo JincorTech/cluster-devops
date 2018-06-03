@@ -1,0 +1,17 @@
+---
+- name: Update repository for latest Docker Flocker
+  shell: 'add-apt-repository -y "deb https://clusterhq-archive.s3.amazonaws.com/ubuntu/$(lsb_release --release --short)/\$(ARCH) /"'
+  when: docker_install_fact|default('') == ''
+  tags: ['bootstrap', 'docker']
+
+- name: Force update packages info
+  changed_when: false
+  shell: apt-get update -y
+  tags: ['bootstrap', 'docker']
+
+- name: Install Docker Flocker
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - clusterhq-flocker-node
+    - clusterhq-flocker-cli
+  tags: ['bootstrap', 'docker']

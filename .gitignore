@@ -1,0 +1,9 @@
+*.retry
+*.log
+*.pyc
+.vagrant
+hosts
+files/*.pem
+files/*.csr
+files/*.srl
+files/extfile.cnf

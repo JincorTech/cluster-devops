@@ -1,0 +1,97 @@
+version: '3.6'
+
+{% from 'macros.j2' import deploy_replicas, environment, link_secrets, secrets, link_configs, configs, dns, ingress_traefik_labels %}
+
+services:
+  auth:
+    image: {{ auth.image }}
+    {{ deploy_replicas(auth.deploy, ingress.auth) }}
+    environment:
+      FORCE_HTTPS: 'disabled'
+      THROTTLER_WHITE_LIST: '127.0.0.1'
+      TENANT_WHITE_LIST: '*'
+      THROTTLER_INTERVAL: '10000'
+      {{ environment(auth.env) }}
+
+    {{ dns() }}
+
+    networks:
+
+      {% if redis_network -%}
+      redis:
+      {%- endif %}
+
+      {% if ingress.auth and ingress.auth.alias -%}
+
+      global_ingress_network:
+        aliases:
+          - {{ ingress.auth.alias }}
+
+      {%- endif %}
+
+      network:
+        aliases:
+          - {{ auth.alias|d('auth') }}
+    {{ link_secrets(auth.secrets) }}
+    {{ link_configs(auth.configs) }}
+
+  verify:
+    image: {{ verify.image }}
+    {{ deploy_replicas(verify.deploy, ingress.verify) }}
+    environment:
+      FORCE_HTTPS: 'disabled'
+      AUTH_API_URL: 'http://auth:3000/tenant/verify'
+      {{ environment(verify.env) }}
+
+    {{ dns() }}
+
+    networks:
+
+      {% if redis_network -%}
+      redis:
+      {%- endif %}
+
+      {% if ingress.verify and ingress.verify.alias -%}
+
+      global_ingress_network:
+        aliases:
+          - {{ ingress.verify.alias }}
+
+      {%- endif %}
+
+      network:
+        aliases:
+          - {{ verify.alias|d('verify') }}
+    {{ link_secrets(verify.secrets) }}
+    {{ link_configs(verify.configs) }}
+
+networks:
+  network:
+    labels:
+      com.sercrettech.stack.type: 'authverify'
+    attachable: true
+    driver: overlay
+
+  {% if ingress.auth or ingress.verify -%}
+  global_ingress_network:
+    external: true
+    name: global_ingress_network
+  {%- endif %}
+
+  {% if redis_network -%}
+  redis:
+    external: true
+    name: {{ redis_network }}
+  {%- endif %}
+
+{% if auth.secrets or verify.secrets -%}
+secrets:
+  {{ secrets(auth.secrets) }}
+  {{ secrets(verify.secrets) }}
+{%- endif %}
+
+{% if auth.configs or verify.configs -%}
+configs:
+  {{ configs(auth.configs) }}
+  {{ configs(verify.configs) }}
+{%- endif %}

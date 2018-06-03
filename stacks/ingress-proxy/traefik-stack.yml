@@ -1,0 +1,69 @@
+version: '3.6'
+
+networks:
+  traefik:
+    external: true
+
+services:
+  traefik:
+    image: traefik:latest
+    hostname: traefik
+    ports:
+      - "80:8080"
+      - "443:8443"
+      - "39934:39934"
+
+    labels:
+      - "traefik.enable=false"
+
+    deploy: &common-deploy
+      mode: replicated
+      replicas: 2
+      restart_policy:
+        condition: any
+        delay: 2s
+      resources:
+        limits:
+          cpus: '0.75'
+          memory: 512M
+      placement:
+        constraints:
+          - node.role == manager
+
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+
+    configs:
+      - source: traefik_cfg_r0
+        target: /etc/traefik/traefik.toml
+      - source: traefik_stats_ca
+        target: /etc/ssl/accesstraefik-ca.pem
+
+    secrets:
+      - source: traefik_stats_crt
+        target: /etc/ssl/accesstraefik.pem
+
+    networks:
+      network:
+        aliases:
+          - traefik
+
+    command: >
+        --logLevel=INFO
+
+networks:
+  network:
+    attachable: true
+    driver: overlay
+
+configs:
+  traefik_cfg_r0:
+    file: ./traefik-config.toml
+  traefik_stats_ca:
+    file: ./data/statscerts/ca.pem
+
+secrets:
+  traefik_stats_crt:
+    file: ./data/statscerts/stats-server.pem

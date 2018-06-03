@@ -1,0 +1,4 @@
+---
+- name: Tune sysctl
+  copy: src=99-customize-opts.conf dest=/etc/sysctl.d/99-customize-opts.conf
+  tags: bootstrap

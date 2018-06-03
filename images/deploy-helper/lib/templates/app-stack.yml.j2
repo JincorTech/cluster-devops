@@ -1,0 +1,105 @@
+version: '3.6'
+
+{% from 'macros.j2' import deploy_replicas, environment, link_secrets, secrets, link_configs, configs, dns, ingress_traefik_labels %}
+
+services:
+  {{ frontend.name|d('frontend') }}:
+    image: {{ frontend.image }}
+    {{ deploy_replicas(frontend.deploy, ingress.frontend) }}
+
+    environment:
+      LOGGING_LEVEL: 'info'
+      {{ environment(frontend.env) }}
+
+    {{ dns() }}
+
+    networks:
+      global_ingress_network:
+        aliases:
+          - {{ ingress.frontend.alias }}
+
+    {{ link_secrets(frontend.secrets) }}
+    {{ link_configs(frontend.configs) }}
+
+  {{ backend.name|d('backend') }}:
+    image: {{ backend.image }}
+    {{ deploy_replicas(backend.deploy, ingress.backend) }}
+
+    environment:
+      ACCESS_LOG: 'true'
+      LOGGING_LEVEL: 'info'
+      LOGGING_FORMAT: 'text'
+      KYC_STATUS_DEFAULT: 'not_verified'
+      KYC_ENABLED: 'false'
+      EMAIL_TEMPLATE_FOLDER: 'default'
+      REDIS_PREFIX: 'icobk_'
+      HTTP_SERVER: 'enabled'
+      PORT: '3000'
+      FORCE_HTTPS: 'disabled'
+      CLIENT_IP_FORWARD_HEADER: 'x-forwarded-for'
+      ORM_ENTITIES_DIR: 'dist/entities/**/*.js'
+      ORM_SUBSCRIBER_DIR: 'dist/subscriber/**/*.js'
+      ORM_MIGRATIONS_DIR: 'dist/migrations/**/*.js'
+      SC_ABI_FOLDER: 'contracts/default'
+      THROTTLER_WHITE_LIST: '127.0.0.1'
+      THROTTLER_INTERVAL: '10000'
+      THROTTLER_MAX: '5'
+      THROTTLER_MIN_DIFF: '0'
+      {{ environment(backend.env) }}
+
+    {{ dns() }}
+
+    networks:
+      {% if redis_network -%}
+      redis:
+      {% endif %}
+
+      {% if mongo_network -%}
+      mongo:
+      {% endif %}
+
+      {% if authverify_network -%}
+      authverify:
+      {% endif %}
+
+      global_ingress_network:
+        aliases:
+          - {{ ingress.backend.alias }}
+
+    {{ link_secrets(backend.secrets) }}
+    {{ link_configs(backend.configs) }}
+
+networks:
+  {% if redis_network -%}
+  redis:
+    external: true
+    name: {{ redis_network }}
+  {%- endif %}
+
+  {% if mongo_network -%}
+  mongo:
+    external: true
+    name: {{ mongo_network }}
+  {%- endif %}
+
+  {% if authverify_network -%}
+  authverify:
+    external: true
+    name: {{ authverify_network }}
+  {%- endif %}
+
+  global_ingress_network:
+    external: true
+    name: global_ingress_network
+
+{% if frontend.secrets or backend.secrets -%}
+secrets:
+  {{ secrets(frontend.secrets) }}
+  {{ secrets(backend.secrets) }}
+{%- endif %}
+
+{% if frontend.configs or backend.configs -%}
+configs:
+  {{ configs(frontend.configs) }}
+  {{ configs(backend.configs) }}
+{%- endif %}

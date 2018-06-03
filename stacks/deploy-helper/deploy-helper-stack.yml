@@ -1,0 +1,56 @@
+version: '3.6'
+
+services:
+  haproxy:
+    image: haproxy:1.8-alpine
+    configs:
+      - target: /usr/local/etc/haproxy/haproxy.cfg
+        source: haproxy_cfg
+      - target: /usr/local/etc/haproxy/ssl/ca.pem
+        source: haproxy_ca
+    secrets:
+      - target: /usr/local/etc/haproxy/ssl/server.pem
+        source: haproxy_pem
+        mode: 0444
+    networks:
+      network:
+    ports:
+      - '39041:39041'
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  deployhelper:
+    image: alekns/deploy-helper:latest
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+    volumes:
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+    networks:
+      network:
+        aliases:
+          - deployhelper
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+
+networks:
+  network:
+    driver: overlay
+
+configs:
+  haproxy_cfg:
+    file: ./haproxy/haproxy.cfg
+  haproxy_ca:
+    file: ./haproxy/accesscerts/ca.pem
+
+secrets:
+  haproxy_pem:
+    file: ./haproxy/accesscerts/server.pem

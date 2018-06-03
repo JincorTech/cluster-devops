@@ -1,0 +1,45 @@
+---
+
+- name: Reset hosts
+  changed_when: false
+  shell: >
+    cp -f /etc/hosts /etc/hosts.bak &&
+    grep '######### CLUSTER NODES' /etc/hosts || echo "######### CLUSTER NODES BEGIN ###########\n######### CLUSTER NODES END ###########" >> /etc/hosts;
+    sed -i -r '/######### CLUSTER NODES BEGIN ###########/,/######### CLUSTER NODES END ###########/{//!d}' /etc/hosts
+  tags: firewall
+
+- name: Add hosts
+  changed_when: false
+  shell: >
+    sed -i -r 's/######### CLUSTER NODES END ###########/{{ hostvars[item]['ip'] }}    c-{{ item }}\n######### CLUSTER NODES END ###########/g' /etc/hosts
+  when: "ip is defined"
+  loop: "{{ groups['docker_engine'] }}"
+  tags: firewall
+
+- name: Init default ufw firewall
+  changed_when: false
+  shell: |
+    ufw allow {{ ansible_ssh_port|default(ufw_ssh_port) }}/tcp
+    ufw limit {{ ansible_ssh_port|default(ufw_ssh_port) }}/tcp
+    echo "y" | ufw default allow outgoing -y
+    echo "y" | ufw default deny incoming -y
+    ufw logging on
+    echo "y" | ufw enable
+  tags: firewall
+
+- name: Allow hosts
+  shell: ufw allow from {{ hostvars[item]['ip'] }}
+  changed_when: false
+  when: "item != inventory_hostname
+    and ip is defined"
+  loop: "{{ groups['docker_engine'] }}"
+  tags: firewall
+
+- name: Remove hosts
+  shell: >
+    ufw delete allow {{ hostvars[item]['ip'] }}
+  changed_when: false
+  when: "item != inventory_hostname
+    and ip is defined"
+  loop: "{{ groups['removed_nodes_from_cluster'] }}"
+  tags: firewall

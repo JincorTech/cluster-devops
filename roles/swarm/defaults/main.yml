@@ -1,0 +1,15 @@
+---
+docker_group: docker
+
+docker_swarm_task_history_limit: "2"
+docker_swarm_addr: "{{ ip }}"
+docker_swarm_port: 2377
+
+docker_admin_users:
+  - "{{ ansible_user | default(ansible_user_id) }}"
+
+is_limitter: false
+services: []
+proxies: []
+
+etcd_nodes_ips: {}

@@ -1,0 +1,98 @@
+version: '3.6'
+
+services:
+  mongo-1: &mongo-common
+    image: alekns/mongo-service:latest
+    deploy: &mongo-deploy
+      endpoint_mode: vip
+      replicas: 1
+      mode: replicated
+      restart_policy:
+        condition: any
+        delay: 1s
+      resources:
+        limits:
+          memory: 1024m
+      placement:
+        constraints:
+          - node.labels.db.mongo==1
+
+    command: mongod --bind_ip_all --smallfiles --auth --keyFile /etc/mongo_shared_key.txt --replSet replica
+    secrets:
+      - source: mongo_shared_key
+        target: /etc/mongo_shared_key.txt
+        mode: 0400
+        uid: '999'
+      - source: mongo_admin_pass
+        target: /etc/mongo_admin_pass.txt
+      - source: mongo_dbs
+        target: /etc/mongo_dbs.txt
+    environment: &mongo-envs
+      MONGO_INIT_PRIMARY_NODE: 'mongo-1:27017'
+      MONGO_INIT_SECONDARY_NODES: 'mongo-2:27017'
+      MONGO_INIT_ARBITRATOR_NODES: 'mongo-a:27017'
+      MONGO_INITDBS_FILE: /etc/mongo_dbs.txt
+      MONGO_INITDB_DATABASE: 'mongo'
+      MONGO_INITDB_ROOT_USERNAME: 'root'
+      MONGO_INITDB_ROOT_PASSWORD_FILE: /etc/mongo_admin_pass.txt
+      MONGO_SELF: 'mongo-1:27017'
+    volumes:
+      - volume-mongo-1:/data
+    networks:
+      mongo:
+        aliases:
+          - mongo-1
+
+  mongo-2:
+    << : *mongo-common
+    deploy:
+      << : *mongo-deploy
+      placement:
+        constraints:
+          - node.labels.db.mongo==2
+    environment:
+      << : *mongo-envs
+      MONGO_INIT_MODE: secondary
+      MONGO_SELF: 'mongo-2:27017'
+    volumes:
+      - volume-mongo-2:/data
+    networks:
+      mongo:
+        aliases:
+          - mongo-2
+
+  mongo-a:
+    << : *mongo-common
+    #deploy:
+    #  << : *mongo-deploy
+    #  placement:
+    #    constraints:
+    #      - node.labels.db.mongo==a
+    environment:
+      << : *mongo-envs
+      MONGO_INIT_MODE: arbitrator
+      MONGO_SELF: 'mongo-a:27017'
+    volumes:
+      - volume-mongo-a:/data
+    networks:
+      mongo:
+        aliases:
+          - mongo-a
+
+networks:
+  mongo:
+    attachable: true
+    driver: overlay
+
+volumes:
+  volume-mongo-1:
+  volume-mongo-2:
+  volume-mongo-a:
+
+secrets:
+  mongo_shared_key:
+    file: ./mongo_shared_key
+  mongo_admin_pass:
+    file: ./mongo_admin_pass
+  mongo_dbs:
+    file: ./mongo_dbs

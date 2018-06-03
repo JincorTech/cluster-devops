@@ -1,0 +1,7 @@
+---
+- include: start.yml
+- include: sysctl.yml
+- include: docker-engine.yml
+- include: docker-compose.yml
+#- include: k8s.yml
+- include: finish.yml

@@ -1,0 +1,42 @@
+version: '3.6'
+
+{% from 'macros.j2' import deploy_replicas, environment, link_secrets, secrets, link_configs, configs %}
+
+services:
+  mongo-1: &mongo-common
+    image: {{ mongo.image }}
+    command: mongod --bind_ip_all --smallfiles --auth
+    {{ deploy_replicas(mongo.deploy) }}
+
+    environment:
+      {{ environment(mongo.env) }}
+      MONGO_INITDB_DATABASE: 'mongo'
+      MONGO_INITDB_ROOT_USERNAME: 'root'
+    volumes:
+      - mongo-1:/data
+    networks:
+      network:
+        aliases:
+          - mongo-1
+    {{ link_secrets(mongo.secrets) }}
+    {{ link_configs(mongo.configs) }}
+
+networks:
+  network:
+    labels:
+      com.sercrettech.stack.type: 'mongo'
+    attachable: true
+    driver: overlay
+
+volumes:
+  mongo-1:
+
+{% if mongo.secrets -%}
+secrets:
+  {{ secrets(mongo.secrets) }}
+{%- endif %}
+
+{% if mongo.configs -%}
+configs:
+  {{ configs(mongo.configs) }}
+{%- endif %}

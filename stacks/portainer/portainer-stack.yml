@@ -1,0 +1,74 @@
+version: '3.6'
+
+services:
+  proxy:
+    image: haproxy:1.8-alpine
+    configs:
+      - target: /usr/local/etc/haproxy/haproxy.cfg
+        source: haproxy_cfg
+      - target: /usr/local/etc/haproxy/ssl/ca.pem
+        source: haproxy_ca
+    secrets:
+      - target: /usr/local/etc/haproxy/ssl/server.pem
+        source: haproxy_pem
+        mode: 0444
+    networks:
+      network:
+    ports:
+      - '39040:39040'
+
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+
+  agent:
+    image: portainer/agent:latest
+    environment:
+      # REQUIRED: Should be equal to the service name prefixed by 'tasks.' when
+      # deployed inside an overlay network
+      AGENT_CLUSTER_ADDR: tasks.agent
+      AGENT_PORT: 9001
+      # LOG_LEVEL: debug
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - network
+    deploy:
+      mode: global
+
+  portainer:
+    image: portainer/portainer:latest
+    command: -H tcp://tasks.agent:9001 --tlsskipverify --admin-password-file /config/admin_pass
+    secrets:
+      - target: /config/admin_pass
+        source: admin_pass
+        mode: 0444
+    volumes:
+      - type: bind
+        source: /var/local/portainer/data
+        target: /data
+    networks:
+      - network
+    deploy:
+      mode: replicated
+      replicas: 1
+      placement:
+        constraints: [node.role == manager]
+
+networks:
+  network:
+    driver: overlay
+
+configs:
+  haproxy_cfg:
+    file: ./data/haproxy.cfg
+  haproxy_ca:
+    file: ./data/accesscerts/ca.pem
+
+secrets:
+  admin_pass:
+    file: ./portainer_admin_pass
+  haproxy_pem:
+    file: ./data/accesscerts/control-server.pem

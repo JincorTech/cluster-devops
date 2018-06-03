@@ -1,0 +1,68 @@
+version: '3.6'
+
+x-deploy: &common-deploy
+  endpoint_mode: vip
+  replicas: 1
+  mode: replicated
+  restart_policy:
+    condition: any
+    delay: 1s
+  resources:
+    limits:
+      cpus: '0.75'
+      memory: 1024m
+
+services:
+  auth:
+    image: jincort/backend-auth:stage
+    deploy:
+      << : *common-deploy
+      #placement:
+      #  constraints:
+      #    - node.labels.project_name.auth==here
+    secrets:
+      - source: backend_auth_env
+        target: /usr/src/app/.env
+    networks:
+      authverify:
+        aliases:
+          - auth
+      redis:
+
+  verify:
+    image: jincort/backend-verify:stage
+    deploy:
+      << : *common-deploy
+      #placement:
+      #  constraints:
+      #    - node.labels.project_name.verify==here
+    secrets:
+      - source: backend_verify_env
+        target: /usr/src/app/.env
+    networks:
+      authverify:
+        aliases:
+          - verify
+      redis:
+
+
+networks:
+  authverify:
+    attachable: true
+    driver: overlay
+    labels:
+      project.namespace = project
+
+  redis:
+    external: true
+    name: solo_redis_redis
+
+secrets:
+  backend_auth_env:
+    file: ./auth.env
+    labels:
+      project.namespace = project
+  backend_verify_env:
+    file: ./verify.env
+    labels:
+      project.namespace = project

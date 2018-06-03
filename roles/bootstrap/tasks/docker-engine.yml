@@ -1,0 +1,53 @@
+---
+- name: Setup repository key for Docker
+  shell: "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -"
+  when: docker_install_fact|default('') == ''
+  tags: ['bootstrap', 'docker']
+
+- name: Update repository for latest Docker
+  shell: 'add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"'
+  when: docker_install_fact|default('') == ''
+  tags: ['bootstrap', 'docker']
+
+- name: Force update packages info
+  changed_when: false
+  shell: apt-get update -y
+  tags: ['bootstrap', 'docker']
+
+- name: Install Docker Engine
+  apt: pkg=docker-ce state=latest
+  tags: ['bootstrap', 'docker']
+
+- name: Configure Docker Engine
+  block:
+    - name: Change default options
+      lineinfile:
+        dest: /etc/default/docker
+        line: 'DOCKER_OPTS="--storage-driver=overlay2 --log-driver=json-file --log-opt=max-size=10m --log-opt=max-file=5 --experimental --metrics-addr=127.0.0.1:1337"'
+        owner: root
+
+    - name: Create systemd extend folder
+      file: path=/etc/systemd/system/docker.service.d state=directory
+      notify: reload systemd
+
+    - name: Copy Docker Service file
+      copy: src=docker.conf dest=/etc/systemd/system/docker.service.d/override.conf
+
+    - name: Copy CA
+      copy: src=ca.pem dest=/etc/docker/ca.pem
+
+    - name: Copy CERT
+      copy: src=cert.pem dest=/etc/docker/cert.pem
+
+    - name: Copy KEY
+      copy: src=key.pem dest=/etc/docker/key.pem
+
+    - name: Add user to docker group
+      user: name={{ maintainer_user|default(maintainer_user) }} groups={{ docker_group|default(docker_group) }} append=yes
+
+    - name: Restart docker
+      service:
+        name: docker
+        state: restarted
+
+  tags: ['bootstrap', 'docker']

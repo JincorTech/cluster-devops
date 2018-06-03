@@ -1,0 +1,9 @@
+---
+timesync_hosts: 0.arch.pool.ntp.org 1.arch.pool.ntp.org 2.arch.pool.ntp.org 3.arch.pool.ntp.org
+timesync_fallback: 0.pool.ntp.org 1.pool.ntp.org 0.fr.pool.ntp.org ntp.ubuntu.com
+ufw_ssh_port: 22
+custom_packages: []
+maintainer_user: maintainer
+maintainer_group: maintainer
+docker_group: docker
+docker_compose_version: 1.21.2

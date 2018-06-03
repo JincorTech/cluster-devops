@@ -1,0 +1,51 @@
+---
+- name: Force use ipv4 for apt
+  shell: echo 'Acquire::ForceIPv4 "true";' | sudo tee /etc/apt/apt.conf.d/99force-ipv4
+  tags: bootstrap
+
+# update was complete after pre_tasks: python2
+- name: Upgrade apt packages
+  become: true
+  apt: state=latest upgrade=yes
+  tags: bootstrap
+
+- name: Ensure all system packages are installed
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - git
+    - curl
+    - wget
+    - htop
+    - mc
+    - ntp
+    - apt-transport-https
+    - ca-certificates
+    - software-properties-common
+    - bridge-utils
+  tags: bootstrap
+
+- name: Disable hugepage file
+  copy: src=hugepage-fix.service dest=/etc/systemd/system/hugepage-fix.service
+  notify: reload systemd
+  tags: bootstrap
+
+- name: Enable hugepage
+  shell: systemctl enable hugepage-fix && systemctl restart hugepage-fix
+  tags: bootstrap
+
+- name: Ensure all custom packages are installed
+  apt: pkg={{ item }} state=latest
+  with_items:
+    - "{{ custom_packages }}"
+  tags: bootstrap
+
+- name: Generate locales
+  changed_when: false
+  command: 'locale-gen en_US.UTF-8'
+  tags: bootstrap
+
+- name: Add timesyncd hosts
+  changed_when: false
+  command: 'echo "NTP={{ timesync_hosts }}
+FallbackNTP={{ timesync_fallback }}" >> /etc/systemd/timesyncd.conf'
+  tags: bootstrap

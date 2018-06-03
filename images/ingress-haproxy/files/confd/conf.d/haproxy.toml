@@ -1,0 +1,15 @@
+[template]
+prefix = "/global/ingress/haproxy"
+src = "haproxy.cfg.tmpl"
+dest = "/usr/local/etc/haproxy/haproxy.cfg"
+owner = "haproxy"
+mode = "0644"
+keys = [
+  "/configs",
+  "/defaults",
+  "/listen",
+  "/entrypoints",
+  "/services",
+]
+#check_cmd = "haproxy"
+#reload_cmd = "haproxy"

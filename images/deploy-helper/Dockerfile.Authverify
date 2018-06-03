@@ -1,0 +1,15 @@
+FROM python:2-alpine3.7
+
+WORKDIR /usr/src/app
+LABEL maintainer="Alexander Sedelnikov <alexander.sedelnikov@ymail.com>"
+
+COPY custom-entrypoint.sh /usr/local/bin/custom-entrypoint.sh
+RUN chmod 755 /usr/local/bin/custom-entrypoint.sh && \
+    pip install urllib3==1.22 requests==2.18.4 docker==3.3.0
+
+COPY ./lib/authhelper.py ./lib/
+COPY ./lib/__init__.py ./lib/
+COPY ./authverify-cli.py .
+
+CMD ["python", "authverify-cli.py"]
+ENTRYPOINT ["/usr/local/bin/custom-entrypoint.sh"]

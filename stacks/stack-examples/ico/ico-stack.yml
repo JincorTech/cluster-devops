@@ -1,0 +1,56 @@
+version: '3.6'
+
+x-common-deploy: &common-deploy
+  endpoint_mode: vip
+  replicas: 1
+  mode: replicated
+  restart_policy:
+    condition: any
+    delay: 1s
+  resources:
+    limits:
+      cpus: '0.50'
+      memory: 1024m
+
+services:
+  frontend-ico-dashboard:
+    image: jincort/frontend-ico-dashboard:stage
+    deploy:
+      << : *common-deploy
+    networks:
+      global_ingress_network:
+        aliases:
+          - front-ico-dashboard
+
+  backend-ico-dashboard:
+    image: jincort/backend-ico-dashboard:stage
+    working_dir: /usr/src/app
+    deploy:
+      << : *common-deploy
+    secrets:
+      - source: backend_ico_env
+        target: /usr/src/app/.env
+        mode: 0440
+    hostname: ico
+    command: npm start
+    networks:
+      mongo:
+      redis:
+      global_ingress_network:
+        aliases:
+          - back-ico-dashboard
+
+networks:
+  redis:
+    external: true
+    name: solo_redis_redis
+  mongo:
+    external: true
+    name: solo_mongo_mongo
+  global_ingress_network:
+    external: true
+    name: global_ingress_network
+
+secrets:
+  backend_ico_env:
+    file: ./ico.env
