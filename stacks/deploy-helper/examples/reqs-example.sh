@@ -206,11 +206,11 @@ call '{
     "name": "'$APP_NS'_app",
     "stack": "app",
     "context": {
-        "ingress.frontend.expose": "route://${APP_FRONT_HOST:-invest.stage.jincor.com}:80",
+        "ingress.frontend.expose": "route://'${APP_FRONT_HOST:-invest.stage.jincor.com}':80",
         "services.frontend.image": "alekns/frontend-ico-dashboard:latest",
         "services.frontend.limits.memory": "1024M",
         "services.frontend.limits.cpus": "1.0",
-        "ingress.backend.expose": "route://${APP_BACK_HOST:-ico-api.stage.jincor.com}:3000?limitter=1s,12,16",
+        "ingress.backend.expose": "route://'${APP_BACK_HOST:-ico-api.stage.jincor.com}':3000?limitter=1s,12,16",
         "services.backend.image": "alekns/backend-ico-dashboard:latest",
         "services.backend.limits.memory": "1024M",
         "services.backend.limits.cpus": "1.0",
