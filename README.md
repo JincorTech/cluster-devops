@@ -1,22 +1,36 @@
+
+Pre-request
+------------
+
+1. On your localhost installed: latest Python 2, latest Docker, Ansible >= 2.4 `$ pip install ansible`
+
+
+
+Pre-request for Sandbox
+------------------------
+
+0. Install Vagrant >= 2 and VirtualBox >= 5
+
+
+
 Sandbox
----------
+--------
 
 No need to use command `$ cluster-cli.sh init`
 
-0. Use vagrant to raise up of virtual machines: `$ vagrant up --no-provision`.
-1. Use hosts.sandbox `$ cp hosts.sandbox hosts`
-2. Use only first step from Pre-request (tls for dockerd).
-3. And start from **Provision all nodes** section
+1. Use vagrant to raise up of virtual machines: `$ vagrant up --no-provision`.
+2. Use hosts.sandbox `$ cp hosts.sandbox hosts`
+3. Use only first step from Pre-request (tls for dockerd).
+4. And start from **Provision all nodes** section
 
 
 
-Pre-request
----------------
+Pre-request for normal flow
+----------------------------
 
 0. Need to generate tls env for dockerd. Fill fields by any values `$ cd files; sh tls-docker-generate.sh`.
-1. On your localhost installed: latest Python 2, latest Docker, Ansible >= 2.4 `$ pip install ansible`
-2. Each cluster node has private network with known ip
-3. Configure hosts file, place nodes in related groups (config for each node: ssh, ip (best to be a private ip), maintainer_user, maintainer_group)
+1. Each cluster node has private network with known ip
+2. Configure hosts file, place nodes in related groups (config for each node: ssh, ip (best to be a private ip), maintainer_user, maintainer_group)
 
 
 
