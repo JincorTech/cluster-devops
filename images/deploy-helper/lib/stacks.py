@@ -212,18 +212,20 @@ class app_stack(stack):
         self.access_pem_file = pem_file
 
     def deploy(self):
+        data = self.context.data
         tmpl = st.app_stack_template(self.context.name)
 
-        tmpl.use_redis(self.context.data['construct.redis_url'], self.context.name, self.try_get_network_for(
+        tmpl.use_redis(data['construct.redis_url'], self.context.name, self.try_get_network_for(
             self.context.links, 'redis'))
-        tmpl.use_mongo(self.context.data['construct.mongo_url'], self.try_get_network_for(
+        tmpl.use_mongo(data['construct.mongo_url'], self.try_get_network_for(
             self.context.links, 'mongo'))
-        tmpl.use_authverify(self.context.data['construct.auth_url'],
-                            self.context.data['construct.verify_url'], self.try_get_network_for(self.context.links, 'authverify'))
+        tmpl.use_authverify(data['construct.auth_url'],
+                            data['construct.verify_url'], self.try_get_network_for(self.context.links, 'authverify'))
 
-        self.process_auto_get_access_token(tmpl, 'AUTH_JWT')
+        auth_jwt_name = data.get('construct.auth_jwt_name', 'AUTH_JWT')
+        self.process_auto_get_access_token(tmpl, auth_jwt_name)
 
-        self.configure_services(explode(self.context.data, 'services.'), tmpl)
+        self.configure_services(explode(data, 'services.'), tmpl)
 
         return dh.deploy_stack(self.context.name, tmpl.dumps({}))
 
