@@ -107,6 +107,16 @@ def deploy_stack(stack_name, stack_content, wait_stack_services=False):
         wait_stack(stack_name)
     return result
 
+def drop_stack(stack_name):
+    process = subprocess.Popen([
+        'docker', 'stack', 'rm', stack_name], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    result = process.communicate()
+
+    time.sleep(4)
+
+    return result
+
 
 def wait_service(svc_name, timeout=150):
     svc = get_client().services.get(svc_name)
@@ -122,13 +132,13 @@ def wait_service(svc_name, timeout=150):
     raise Exception('Wait %s service timeout' % svc.name)
 
 
-def wait_stack(stack_name):
+def wait_stack(stack_name, timeout=150):
     services = get_client().services.list(
         filters={'label': ['com.docker.stack.namespace=%s' % stack_name]})
     if len(services) == 0:
         raise Exception('%s stack is not found' % stack_name)
     for svc in services:
-        wait_service(svc.id)
+        wait_service(svc.id, timeout)
 
 
 def create_temporary_manager_service(image, envs, networks, secrets):

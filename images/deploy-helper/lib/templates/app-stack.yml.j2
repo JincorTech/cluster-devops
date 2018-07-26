@@ -26,25 +26,9 @@ services:
     {{ deploy_replicas(backend.deploy, ingress.backend) }}
 
     environment:
-      ACCESS_LOG: 'true'
-      LOGGING_LEVEL: 'info'
-      LOGGING_FORMAT: 'text'
-      KYC_STATUS_DEFAULT: 'not_verified'
-      KYC_ENABLED: 'false'
-      EMAIL_TEMPLATE_FOLDER: 'default'
-      REDIS_PREFIX: 'icobk_'
-      HTTP_SERVER: 'enabled'
-      PORT: '3000'
-      FORCE_HTTPS: 'disabled'
       CLIENT_IP_FORWARD_HEADER: 'x-forwarded-for'
-      ORM_ENTITIES_DIR: 'dist/entities/**/*.js'
-      ORM_SUBSCRIBER_DIR: 'dist/subscriber/**/*.js'
-      ORM_MIGRATIONS_DIR: 'dist/migrations/**/*.js'
-      SC_ABI_FOLDER: 'contracts/default'
-      THROTTLER_WHITE_LIST: '127.0.0.1'
-      THROTTLER_INTERVAL: '10000'
-      THROTTLER_MAX: '5'
-      THROTTLER_MIN_DIFF: '0'
+      THROTTLER_INTERVAL: '20000'
+      THROTTLER_MAX: '100'
       {{ environment(backend.env) }}
 
     {{ dns() }}

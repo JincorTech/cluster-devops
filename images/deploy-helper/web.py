@@ -12,7 +12,7 @@ from flask import Flask, request, jsonify
 app = Flask(__name__)
 
 
-deploy_schema = {
+deploy_or_update_schema = {
     "$schema": "http://json-schema.org/schema#",
 
     "type": "object",
@@ -38,17 +38,27 @@ deploy_schema = {
 def page_not_found(e):
     return jsonify(error=404, text=str(e)), 404
 
-@app.route('/stacks/actions/deploy', methods=['POST'])
-def deploy():
+def run_task(method):
     try:
-        validate(request.json, deploy_schema)
+        validate(request.json, deploy_or_update_schema)
     except:
         return jsonify(message=traceback.format_exc()), 400
     try:
         req = request.json
-        return jsonify(message=ls.get_stack(req['name'], req['stack'], req['context'], req['links']).deploy())
+        if method == 'deploy':
+            return jsonify(response=ls.get_stack(req['name'], req['stack'], req['context'], req['links']).deploy())
+        return jsonify(response=ls.get_stack(req['name'], req['stack'], req['context'], req['links']).update())
     except:
         return jsonify(message=traceback.format_exc()), 500
+
+
+@app.route('/stacks/actions/deploy', methods=['POST'])
+def deploy():
+    return run_task('deploy')
+
+@app.route('/stacks/actions/update', methods=['POST'])
+def update():
+    return run_task('update')
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=True)

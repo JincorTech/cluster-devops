@@ -78,6 +78,12 @@ class stack(object):
                 tmpl.services[svc_name]['image'] = params[svc_name]['image']
         self.create_configs(tmpl)
 
+    def configure_envfile(self, svc_name, context_data, tmpl, mount_path, is_secret):
+        if is_secret:
+            tmpl.set_secret(svc_name, mount_path, 'appenvfile', context_data['services.%s.envfile' % svc_name])
+        else:
+            raise Exception('supported only is_secret')
+
     def configure_ingress(self, tmpl):
         ingress_config = explode(self.context.data, 'ingress.')
         if len(ingress_config.keys()) == 0:
@@ -162,6 +168,8 @@ class redis_stack(stack):
         self.configure_services(explode(self.context.data, 'services.'), tmpl)
         return dh.deploy_stack(self.context.name, tmpl.dumps({}), True)
 
+    def update(self):
+        return self.deploy()
 
 class mongo_stack(stack):
     def deploy(self):
@@ -174,6 +182,8 @@ class mongo_stack(stack):
         self.configure_services(explode(self.context.data, 'services.'), tmpl)
         return dh.deploy_stack(self.context.name, tmpl.dumps({}), True)
 
+    def update(self):
+        return self.deploy()
 
 def format_ingress_alias(tmpl, stack_name, svc_name, alias):
     return re.sub('^-+|-+$', '', re.sub(r'-+', '-', re.sub(r'[^A-Za-z0-9]', '-', '%s-%s-%s' % (stack_name, 'app', alias))))
@@ -205,6 +215,10 @@ class authverify_stack(stack):
 
         return dh.deploy_stack(self.context.name, tmpl.dumps({}), True)
 
+    def update(self):
+        dh.drop_stack(self.context.name)
+        return self.deploy()
+
 
 class app_stack(stack):
 
@@ -215,19 +229,37 @@ class app_stack(stack):
         data = self.context.data
         tmpl = st.app_stack_template(self.context.name)
 
-        tmpl.use_redis(data['construct.redis_url'], self.context.name, self.try_get_network_for(
-            self.context.links, 'redis'))
-        tmpl.use_mongo(data['construct.mongo_url'], self.try_get_network_for(
-            self.context.links, 'mongo'))
-        tmpl.use_authverify(data['construct.auth_url'],
-                            data['construct.verify_url'], self.try_get_network_for(self.context.links, 'authverify'))
+        set_envs = True
+        if 'services.backend.envfile' in data:
+            self.configure_envfile('backend', data, tmpl, '/usr/src/app/.env', True)
+            set_envs = False
 
-        auth_jwt_name = data.get('construct.auth_jwt_name', 'AUTH_JWT')
-        self.process_auto_get_access_token(tmpl, auth_jwt_name)
+        tmpl.use_redis(data.get('construct.redis_url', 'redis://redis'), self.context.name, set_envs, self.try_get_network_for(
+            self.context.links, 'redis'))
+        tmpl.use_mongo(data.get('construct.mongo_url', 'mongo://mongo'), set_envs, self.try_get_network_for(
+            self.context.links, 'mongo'))
+        tmpl.use_authverify(data.get('construct.auth_url', 'http://auth:3000'),
+            data.get('construct.verify_url', 'http://verify:3000'), set_envs, self.try_get_network_for(self.context.links, 'authverify'))
+
+        self.accessToken = ''
+        if data.get('construct.no_auto_auth_jwt', '') == '':
+            auth_jwt_name = data.get('construct.auth_jwt_name', 'AUTH_JWT')
+            self.process_auto_get_access_token(tmpl, auth_jwt_name)
+        else:
+            self.accessToken = 'disabled_auto_auth_jwt'
 
         self.configure_services(explode(data, 'services.'), tmpl)
 
-        return dh.deploy_stack(self.context.name, tmpl.dumps({}))
+        return {
+            'deploy': dh.deploy_stack(self.context.name, tmpl.dumps({})),
+            'data': {
+                'auth_jwt': self.accessToken
+            }
+        }
+
+    def update(self):
+        dh.drop_stack(self.context.name)
+        return self.deploy()
 
     def process_auto_get_access_token(self, tmpl, access_env_name):
         ctx = self.context.data
@@ -294,7 +326,7 @@ class app_stack(stack):
                     time.sleep(1)
 
                     if attempts == max_retries:
-                        raise Exception('AuthVerify helper isnot return data')
+                        raise Exception('AuthVerify helper is not return data')
 
                 except Exception as e:
                     if svc:
@@ -321,4 +353,5 @@ class app_stack(stack):
                 sec.remove()
             raise e
 
+        self.accessToken = accessToken
         tmpl.set_env('backend', '*' + access_env_name, accessToken)

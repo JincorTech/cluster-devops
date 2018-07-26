@@ -43,6 +43,24 @@ class stack_template(object):
             self.set_env(service, l[:inx], l[inx + 1:])
         return self
 
+    def get_secret_name(self, service, name):
+        return '%s_%s_%s' % (self.name, service, name.lower())
+
+    def set_secret(self, service, path, name, value, abs_external = False, mode='', uid=''):
+        secret = {
+            'name': '%s_%s' % (service, name.lower()),
+            'path': path,
+            'external': value.strip() if abs_external else self.get_secret_name(service, name),
+            'value': None if abs_external else value
+        }
+
+        if len(mode) > 0:
+            secret['mode'] = mode
+        if len(uid) > 0:
+            secret['uid'] = uid
+
+        self.services[service]['secrets'][secret['name']] = secret
+
     def set_env(self, service, name, value, mode='', uid=''):
         if re.match('^".*"$|^\'.*\'$', value):
             value = value[1:-1]
@@ -57,19 +75,8 @@ class stack_template(object):
                 abs_external = True
 
             path = '/etc/secret_%s' % name.lower()
-            secret = {
-                'name': '%s_%s' % (service, name.lower()),
-                'path': path,
-                'external': value.strip() if abs_external else '%s_%s_%s' % (self.name, service, name.lower()),
-                'value': None if abs_external else value
-            }
 
-            if len(mode) > 0:
-                secret['mode'] = mode
-            if len(uid) > 0:
-                secret['uid'] = uid
-
-            self.services[service]['secrets'][secret['name']] = secret
+            self.set_secret(service, path, name, value, abs_external, mode, uid)
 
             name = name + '_FILE'
             value = path
@@ -145,6 +152,7 @@ def set_stack_template_network(name, configs, stack_network):
     elif name + '_network' in configs:
         del configs[name + '_network']
 
+
 class authverify_stack_template(stack_template):
     def __init__(self, name, jwt_key):
         super(authverify_stack_template, self).__init__(name, 'auth-verify')
@@ -194,16 +202,19 @@ class app_stack_template(stack_template):
         self.services['frontend']['deploy']['replicas'] = '2'
         self.services['backend']['deploy']['replicas'] = '2'
 
-    def use_redis(self, redis_url, redis_prefix, stack_network=False):
-        self.set_env('backend', '*REDIS_URL', redis_url) \
-            .set_env('backend', 'REDIS_PREFIX', redis_prefix)
+    def use_redis(self, redis_url, redis_prefix, set_envs=True, stack_network=False):
+        if set_envs:
+            self.set_env('backend', '*REDIS_URL', redis_url) \
+                .set_env('backend', 'REDIS_PREFIX', redis_prefix)
         set_stack_template_network('redis', self.configs, stack_network)
 
-    def use_mongo(self, mongo_url, stack_network=False):
-        self.set_env('backend', '*MONGO_URL', mongo_url)
+    def use_mongo(self, mongo_url, set_envs=True, stack_network=False):
+        if set_envs:
+            self.set_env('backend', '*MONGO_URL', mongo_url)
         set_stack_template_network('mongo', self.configs, stack_network)
 
-    def use_authverify(self, auth_url, verify_url, stack_network=False):
-        self.set_env('backend', 'AUTH_BASE_URL', auth_url)
-        self.set_env('backend', 'VERIFY_BASE_URL', verify_url)
+    def use_authverify(self, auth_url, verify_url, set_envs=True, stack_network=False):
+        if set_envs:
+            self.set_env('backend', 'AUTH_BASE_URL', auth_url) \
+                .set_env('backend', 'VERIFY_BASE_URL', verify_url)
         set_stack_template_network('authverify', self.configs, stack_network)
